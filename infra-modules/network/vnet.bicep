@@ -22,20 +22,17 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
     addressSpace: {
       addressPrefixes: addressPrefixes
     }
-    subnets: [
-      for subnet in subnets: {
-        name: subnet.name
-        properties: {
-          addressPrefix: subnet.addressPrefix
-        }
+    subnets: [for subnet in subnets: {
+      name: subnet.name
+      properties: {
+        addressPrefix: subnet.addressPrefix
       }
-    ]
+    }]
   }
 }
 
 output vnetId string = vnet.id
 
-// ✅ Corrected syntax for object comprehension
 output subnetIds object = {
-  for (subnet, i) in subnets: subnet.name => vnet.properties.subnets[i].id
+  for (subnet, i) in subnets: subnet.name: vnet.properties.subnets[i].id
 }
