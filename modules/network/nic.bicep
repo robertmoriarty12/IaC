@@ -42,4 +42,4 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-04-01' = {
 }
 
 output nicId string = nic.id
-output nicName string = nic.name
+output nicName string = nic.name 

@@ -67,3 +67,4 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-03-01' = {
 }
 
 output vmId string = vm.id
+output vmName string = vm.name 

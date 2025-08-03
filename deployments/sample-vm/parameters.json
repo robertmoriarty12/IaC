@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "projectName": {
-      "value": "hybrid-ad-lab"
+      "value": "sample-vm"
     },
     "environment": {
       "value": "dev"
@@ -12,10 +12,13 @@
       "value": "eastus"
     },
     "adminUsername": {
-      "value": "labadmin"
+      "value": "adminuser"
     },
     "adminPassword": {
       "value": "P@ssword123!"
+    },
+    "vmSize": {
+      "value": "Standard_D2s_v3"
     }
   }
-}
+} 
