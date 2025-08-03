@@ -22,12 +22,14 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
     addressSpace: {
       addressPrefixes: addressPrefixes
     }
-    subnets: [for subnet in subnets: {
-      name: subnet.name
-      properties: {
-        addressPrefix: subnet.addressPrefix
+    subnets: [
+      for subnet in subnets: {
+        name: subnet.name
+        properties: {
+          addressPrefix: subnet.addressPrefix
+        }
       }
-    }]
+    ]
   }
 }
 
