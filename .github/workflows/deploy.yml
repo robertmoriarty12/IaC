@@ -1,0 +1,37 @@
+name: Deploy Azure Hybrid AD Lab
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install Bicep CLI
+        run: az bicep install
+
+      - name: Validate Bicep
+        run: |
+          echo "Validating Bicep template..."
+          az bicep build --file projects/hybrid-ad-lab/main.bicep
+
+      - name: Create Resource Group
+        run: |
+          echo "Creating Resource Group..."
+          az group create --name hybrid-ad-lab-rg --location eastus
+
+      - name: Deploy Bicep Template
+        run: |
+          echo "Deploying Bicep Template..."
+          az deployment group create \
+            --resource-group hybrid-ad-lab-rg \
+            --template-file projects/hybrid-ad-lab/main.bicep \
+            --parameters @projects/hybrid-ad-lab/main.parameters.json
