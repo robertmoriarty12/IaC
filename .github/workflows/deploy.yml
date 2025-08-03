@@ -31,6 +31,14 @@ jobs:
           Install-Module -Name Az -Repository PSGallery -Force -AllowClobber
           Import-Module Az
 
+      - name: Connect to Azure
+        shell: pwsh
+        run: |
+          $creds = $env:AZURE_CREDENTIALS | ConvertFrom-Json
+          $securePassword = ConvertTo-SecureString $creds.clientSecret -AsPlainText -Force
+          $credential = New-Object System.Management.Automation.PSCredential($creds.clientId, $securePassword)
+          Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $creds.tenantId
+
       - name: Deploy with PowerShell
         shell: pwsh
         run: |
