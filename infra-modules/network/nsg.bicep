@@ -12,15 +12,19 @@ param securityRules array = [
     direction: 'Inbound'
     access: 'Allow'
     protocol: 'Tcp'
-    sourceAddressPrefix: '*'
+    sourceAddressPrefix: 'Internet'
     destinationAddressPrefix: '*'
     destinationPortRange: '3389'
   }
 ]
 
+@description('Tags to apply to the NSG')
+param tags object = {}
+
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: name
   location: location
+  tags: tags
   properties: {
     securityRules: [for rule in securityRules: {
       name: rule.name
@@ -38,3 +42,4 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
 }
 
 output nsgId string = nsg.id
+output nsgName string = nsg.name

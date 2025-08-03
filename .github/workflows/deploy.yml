@@ -44,22 +44,44 @@ jobs:
         run: |
           echo "Validating Bicep for project ${{ github.event.inputs.project }}..."
           az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
+          echo "✅ Bicep validation successful"
 
-      # 6. Create Resource Group
-      - name: Create Resource Group
+      # 6. Check if Resource Group exists, create if not
+      - name: Check/Create Resource Group
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
-          echo "Creating resource group $RG_NAME..."
-          az group create \
-            --name $RG_NAME \
-            --location ${{ github.event.inputs.location }} \
-            --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
+          echo "Checking if resource group $RG_NAME exists..."
+          
+          if az group show --name $RG_NAME --query "name" --output tsv 2>/dev/null; then
+            echo "✅ Resource group $RG_NAME already exists"
+          else
+            echo "Creating resource group $RG_NAME..."
+            az group create \
+              --name $RG_NAME \
+              --location ${{ github.event.inputs.location }} \
+              --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
+            echo "✅ Resource group $RG_NAME created successfully"
+          fi
 
-      # 7. Deploy Bicep Template (Safe Mode)
+      # 7. Deploy Bicep Template
       - name: Deploy Bicep Template
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "Deploying ${{ github.event.inputs.project }} in $RG_NAME..."
+          
+          # Deploy with what-if first
+          echo "Running what-if analysis..."
+          az deployment group what-if \
+            --resource-group $RG_NAME \
+            --template-file projects/${{ github.event.inputs.project }}/main.bicep \
+            --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
+            --parameters \
+                projectName=${{ github.event.inputs.project }} \
+                environment=${{ github.event.inputs.environment }} \
+                location=${{ github.event.inputs.location }}
+          
+          # Actual deployment
+          echo "Starting deployment..."
           az deployment group create \
             --resource-group $RG_NAME \
             --template-file projects/${{ github.event.inputs.project }}/main.bicep \
@@ -68,8 +90,8 @@ jobs:
                 projectName=${{ github.event.inputs.project }} \
                 environment=${{ github.event.inputs.environment }} \
                 location=${{ github.event.inputs.location }} \
-            --query "{status:properties.provisioningState}" \
-            --output tsv
+            --query "{status:properties.provisioningState, outputs:properties.outputs}" \
+            --output json
 
       # 8. Get VM Public IPs
       - name: Get VM Public IPs
@@ -77,3 +99,20 @@ jobs:
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "Fetching public IPs for VMs in $RG_NAME..."
           az vm list-ip-addresses --resource-group $RG_NAME --output table
+
+      # 9. Display Connection Information
+      - name: Display Connection Information
+        run: |
+          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          echo "=== CONNECTION INFORMATION ==="
+          echo "Resource Group: $RG_NAME"
+          echo ""
+          echo "VMs and their public IPs:"
+          az vm list-ip-addresses --resource-group $RG_NAME --query "[].{VM:virtualMachine.name, PublicIP:virtualMachine.network.publicIpAddresses[0].ipAddress}" --output table
+          echo ""
+          echo "To connect via RDP:"
+          echo "1. Use the public IP addresses above"
+          echo "2. Username: labadmin"
+          echo "3. Password: P@ssword123!"
+          echo ""
+          echo "⚠️  Remember to secure your environment after deployment!"

@@ -15,9 +15,13 @@ param subnets array = [
   }
 ]
 
+@description('Tags to apply to the VNet')
+param tags object = {}
+
 resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
   name: name
   location: location
+  tags: tags
   properties: {
     addressSpace: {
       addressPrefixes: addressPrefixes
@@ -34,8 +38,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
 }
 
 output vnetId string = vnet.id
+output vnetName string = vnet.name
 
-// ✅ Simpler output for guaranteed compatibility
-output subnetIds array = [
-  for (subnet, i) in subnets: vnet.properties.subnets[i].id
-]
+// More reliable subnet output
+output subnetIds array = [for subnet in vnet.properties.subnets: subnet.id]
+output subnetNames array = [for subnet in vnet.properties.subnets: subnet.name]
