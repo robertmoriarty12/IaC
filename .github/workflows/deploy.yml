@@ -1,14 +1,10 @@
-name: Deploy Azure IaC Project
+name: Deploy VMs
 
 on:
   workflow_dispatch:
     inputs:
-      project:
-        description: 'Project name (folder under projects/)'
-        required: true
-        default: 'hybrid-ad-lab'
       environment:
-        description: 'Environment (dev, test, prod)'
+        description: 'Environment'
         required: true
         default: 'dev'
       location:
@@ -29,44 +25,24 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Install Bicep
-        run: az bicep install
-
-      - name: Validate Template
-        run: az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
-
-      - name: Create Resource Group
+      - name: Deploy
         run: |
-          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
-          az group create --name $RG_NAME --location ${{ github.event.inputs.location }} --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" > /dev/null 2>&1
-
-      - name: Deploy Infrastructure
-        run: |
-          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          RG_NAME="hybrid-ad-lab-${{ github.event.inputs.environment }}-rg"
+          
+          # Create resource group
+          az group create --name $RG_NAME --location ${{ github.event.inputs.location }}
+          
+          # Deploy the template
           az deployment group create \
             --resource-group $RG_NAME \
-            --template-file projects/${{ github.event.inputs.project }}/main.bicep \
-            --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
-            --parameters projectName=${{ github.event.inputs.project }} \
+            --template-file projects/hybrid-ad-lab/main.bicep \
+            --parameters @projects/hybrid-ad-lab/main.parameters.json \
+            --parameters projectName=hybrid-ad-lab \
             --parameters environment=${{ github.event.inputs.environment }} \
-            --parameters location=${{ github.event.inputs.location }} \
-            --no-wait
+            --parameters location=${{ github.event.inputs.location }}
 
-      - name: Wait for Deployment
+      - name: Show VMs
         run: |
-          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
-          sleep 30
-          az deployment group wait --resource-group $RG_NAME --name "main" --created
-
-      - name: Show Results
-        run: |
-          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
-          echo "=== DEPLOYMENT COMPLETE ==="
-          echo "Resource Group: $RG_NAME"
-          echo ""
-          echo "VM Public IPs:"
-          az vm list-ip-addresses --resource-group $RG_NAME --output table
-          echo ""
-          echo "Connection Details:"
-          echo "Username: labadmin"
-          echo "Password: P@ssword123!"
+          RG_NAME="hybrid-ad-lab-${{ github.event.inputs.environment }}-rg"
+          echo "=== VMs Deployed ==="
+          az vm list --resource-group $RG_NAME --output table

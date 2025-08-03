@@ -23,124 +23,199 @@ var tags = {
 }
 
 // Virtual Network
-module vnet '../../infra-modules/network/vnet.bicep' = {
+resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
   name: '${resourcePrefix}-vnet'
-  params: {
-    name: '${resourcePrefix}-vnet'
-    location: location
-    addressPrefixes: [
-      '10.0.0.0/16'
-    ]
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
     subnets: [
       {
         name: 'default'
-        addressPrefix: '10.0.0.0/24'
+        properties: {
+          addressPrefix: '10.0.0.0/24'
+        }
       }
     ]
-    tags: tags
   }
 }
 
 // Network Security Group
-module nsg '../../infra-modules/network/nsg.bicep' = {
+resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: '${resourcePrefix}-nsg'
-  params: {
-    name: '${resourcePrefix}-nsg'
-    location: location
+  location: location
+  tags: tags
+  properties: {
     securityRules: [
       {
         name: 'AllowRDP'
-        priority: 1000
-        direction: 'Inbound'
-        access: 'Allow'
-        protocol: 'Tcp'
-        sourceAddressPrefix: 'Internet'
-        destinationAddressPrefix: '*'
-        destinationPortRange: '3389'
+        properties: {
+          priority: 1000
+          access: 'Allow'
+          direction: 'Inbound'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'Internet'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '3389'
+        }
       }
     ]
-    tags: tags
   }
 }
 
-// Public IPs for VMs
-module dcPublicIp '../../infra-modules/network/publicip.bicep' = {
+// Public IPs
+resource dcPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
   name: '${resourcePrefix}-dc-pip'
-  params: {
-    name: '${resourcePrefix}-dc-pip'
-    location: location
-    tags: tags
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
   }
 }
 
-module defenderPublicIp '../../infra-modules/network/publicip.bicep' = {
+resource defenderPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
   name: '${resourcePrefix}-defender-pip'
-  params: {
-    name: '${resourcePrefix}-defender-pip'
-    location: location
-    tags: tags
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
   }
 }
 
 // Network Interfaces
-module dcNic '../../infra-modules/network/nic.bicep' = {
+resource dcNic 'Microsoft.Network/networkInterfaces@2023-04-01' = {
   name: '${resourcePrefix}-dc-nic'
-  params: {
-    name: '${resourcePrefix}-dc-nic'
-    location: location
-    subnetId: vnet.outputs.subnetIds[0]
-    nsgId: nsg.outputs.nsgId
-    publicIpId: dcPublicIp.outputs.publicIpId
-    tags: tags
+  location: location
+  tags: tags
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          subnet: {
+            id: vnet.properties.subnets[0].id
+          }
+          privateIPAllocationMethod: 'Dynamic'
+          publicIPAddress: {
+            id: dcPublicIp.id
+          }
+        }
+      }
+    ]
+    networkSecurityGroup: {
+      id: nsg.id
+    }
   }
 }
 
-module defenderNic '../../infra-modules/network/nic.bicep' = {
+resource defenderNic 'Microsoft.Network/networkInterfaces@2023-04-01' = {
   name: '${resourcePrefix}-defender-nic'
-  params: {
-    name: '${resourcePrefix}-defender-nic'
-    location: location
-    subnetId: vnet.outputs.subnetIds[0]
-    nsgId: nsg.outputs.nsgId
-    publicIpId: defenderPublicIp.outputs.publicIpId
-    tags: tags
+  location: location
+  tags: tags
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          subnet: {
+            id: vnet.properties.subnets[0].id
+          }
+          privateIPAllocationMethod: 'Dynamic'
+          publicIPAddress: {
+            id: defenderPublicIp.id
+          }
+        }
+      }
+    ]
+    networkSecurityGroup: {
+      id: nsg.id
+    }
   }
 }
 
 // Virtual Machines
-module dcVm '../../infra-modules/compute/vm.bicep' = {
-  name: '${resourcePrefix}-dc-vm'
-  params: {
-    name: '${resourcePrefix}-dc'
-    location: location
-    adminUsername: adminUsername
-    adminPassword: adminPassword
-    nicId: dcNic.outputs.nicId
-    vmSize: 'Standard_D2s_v3'
-    tags: union(tags, {
-      Role: 'DomainController'
-    })
+resource dcVm 'Microsoft.Compute/virtualMachines@2023-03-01' = {
+  name: '${resourcePrefix}-dc'
+  location: location
+  tags: union(tags, {
+    Role: 'DomainController'
+  })
+  properties: {
+    hardwareProfile: {
+      vmSize: 'Standard_D2s_v3'
+    }
+    osProfile: {
+      computerName: '${resourcePrefix}-dc'
+      adminUsername: adminUsername
+      adminPassword: adminPassword
+    }
+    storageProfile: {
+      imageReference: {
+        publisher: 'MicrosoftWindowsServer'
+        offer: 'WindowsServer'
+        sku: '2019-Datacenter'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+      }
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: dcNic.id
+        }
+      ]
+    }
   }
 }
 
-module defenderVm '../../infra-modules/compute/vm.bicep' = {
-  name: '${resourcePrefix}-defender-vm'
-  params: {
-    name: '${resourcePrefix}-defender'
-    location: location
-    adminUsername: adminUsername
-    adminPassword: adminPassword
-    nicId: defenderNic.outputs.nicId
-    vmSize: 'Standard_D4s_v3'
-    tags: union(tags, {
-      Role: 'DefenderForIdentity'
-    })
+resource defenderVm 'Microsoft.Compute/virtualMachines@2023-03-01' = {
+  name: '${resourcePrefix}-defender'
+  location: location
+  tags: union(tags, {
+    Role: 'DefenderForIdentity'
+  })
+  properties: {
+    hardwareProfile: {
+      vmSize: 'Standard_D4s_v3'
+    }
+    osProfile: {
+      computerName: '${resourcePrefix}-defender'
+      adminUsername: adminUsername
+      adminPassword: adminPassword
+    }
+    storageProfile: {
+      imageReference: {
+        publisher: 'MicrosoftWindowsServer'
+        offer: 'WindowsServer'
+        sku: '2019-Datacenter'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+      }
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: defenderNic.id
+        }
+      ]
+    }
   }
 }
 
 // Outputs
-output vnetName string = vnet.outputs.vnetName
-output dcVmName string = dcVm.name
-output defenderVmName string = defenderVm.name
-output dcPublicIpAddress string = dcPublicIp.outputs.publicIpAddress
-output defenderPublicIpAddress string = defenderPublicIp.outputs.publicIpAddress
+output dcPublicIpAddress string = dcPublicIp.properties.ipAddress
+output defenderPublicIpAddress string = defenderPublicIp.properties.ipAddress
