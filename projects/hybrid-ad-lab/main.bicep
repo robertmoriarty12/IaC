@@ -63,7 +63,7 @@ module nic1 '../../infra-modules/network/nic.bicep' = {
   params: {
     name: '${resourcePrefix}-dc-nic'
     location: location
-    subnetId: vnet.outputs.subnetIds['default']
+    subnetId: vnet.outputs.subnetIds[0]
     nsgId: nsg.outputs.nsgId
   }
 }
