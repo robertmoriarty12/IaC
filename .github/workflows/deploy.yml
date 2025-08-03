@@ -13,7 +13,7 @@ on:
         default: 'dev'
       location:
         description: 'Azure region'
-        required: false
+        required: true
         default: 'eastus'
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
             --location ${{ github.event.inputs.location }} \
             --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
 
-      # 6. Deploy Project
+      # 6. Deploy Bicep Template
       - name: Deploy Bicep Template
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
@@ -60,7 +60,10 @@ jobs:
             --resource-group $RG_NAME \
             --template-file projects/${{ github.event.inputs.project }}/main.bicep \
             --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
-            --parameters location=${{ github.event.inputs.location }}
+            --parameters \
+                projectName=${{ github.event.inputs.project }} \
+                environment=${{ github.event.inputs.environment }} \
+                location=${{ github.event.inputs.location }}
 
       # 7. Output VM Public IPs
       - name: Get VM Public IPs
