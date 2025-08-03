@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout Code
+      # 1. Checkout Repo
       - name: Checkout Repo
         uses: actions/checkout@v4
 
@@ -35,28 +35,34 @@ jobs:
       - name: Install Bicep CLI
         run: az bicep install
 
-      # 4. Validate Bicep
+      # 4. Check Bicep Version (debug step)
+      - name: Check Bicep Version
+        run: az bicep version
+
+      # 5. Validate Bicep Template
       - name: Validate Bicep Template
         run: |
           echo "Validating Bicep for project ${{ github.event.inputs.project }}..."
           az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
 
-      # 5. Create Resource Group
+      # 6. Create Resource Group
       - name: Create Resource Group
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "Creating resource group $RG_NAME..."
           az group create \
+            --only-show-errors \
             --name $RG_NAME \
             --location ${{ github.event.inputs.location }} \
             --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
 
-      # 6. Deploy Bicep Template
+      # 7. Deploy Bicep Template
       - name: Deploy Bicep Template
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "Deploying ${{ github.event.inputs.project }} in $RG_NAME..."
           az deployment group create \
+            --only-show-errors \
             --resource-group $RG_NAME \
             --template-file projects/${{ github.event.inputs.project }}/main.bicep \
             --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
@@ -65,7 +71,7 @@ jobs:
                 environment=${{ github.event.inputs.environment }} \
                 location=${{ github.event.inputs.location }}
 
-      # 7. Output VM Public IPs
+      # 8. Get VM Public IPs
       - name: Get VM Public IPs
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
