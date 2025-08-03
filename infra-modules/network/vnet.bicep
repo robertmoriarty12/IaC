@@ -7,8 +7,13 @@ param location string
 @description('Address prefixes for the VNet')
 param addressPrefixes array
 
-@description('Address prefix for the default subnet')
-param subnetPrefix string = '10.0.0.0/24'
+@description('Array of subnets with name and addressPrefix')
+param subnets array = [
+  {
+    name: 'default'
+    addressPrefix: '10.0.0.0/24'
+  }
+]
 
 resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
   name: name
@@ -17,16 +22,16 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
     addressSpace: {
       addressPrefixes: addressPrefixes
     }
-    subnets: [
-      {
-        name: 'default'
-        properties: {
-          addressPrefix: subnetPrefix
-        }
+    subnets: [for subnet in subnets: {
+      name: subnet.name
+      properties: {
+        addressPrefix: subnet.addressPrefix
       }
-    ]
+    }]
   }
 }
 
 output vnetId string = vnet.id
-output subnetId string = vnet.properties.subnets[0].id
+output subnetIds object = {
+  for subnet in subnets: subnet.name => vnet.properties.subnets[arrayIndexOf(subnets, subnet)].id
+}
