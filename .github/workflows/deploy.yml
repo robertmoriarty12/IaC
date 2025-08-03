@@ -25,63 +25,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Install Azure PowerShell
-        shell: pwsh
+      - name: Deploy
         run: |
-          Install-Module -Name Az -Repository PSGallery -Force -AllowClobber
-          Import-Module Az
-
-      - name: Connect to Azure
-        shell: pwsh
-        run: |
-          $creds = $env:AZURE_CREDENTIALS | ConvertFrom-Json
-          $securePassword = ConvertTo-SecureString $creds.clientSecret -AsPlainText -Force
-          $credential = New-Object System.Management.Automation.PSCredential($creds.clientId, $securePassword)
-          Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $creds.tenantId
-
-      - name: Deploy with PowerShell
-        shell: pwsh
-        run: |
-          $RGName = "hybrid-ad-lab-${{ github.event.inputs.environment }}-rg"
-          $Location = "${{ github.event.inputs.location }}"
-          
           # Create resource group
-          New-AzResourceGroup -Name $RGName -Location $Location -Force
+          az group create --name hybrid-ad-lab-${{ github.event.inputs.environment }}-rg --location ${{ github.event.inputs.location }}
           
-          # Deploy the template
-          New-AzResourceGroupDeployment `
-            -ResourceGroupName $RGName `
-            -TemplateFile "projects/hybrid-ad-lab/main.bicep" `
-            -TemplateParameterFile "projects/hybrid-ad-lab/main.parameters.json" `
-            -projectName "hybrid-ad-lab" `
-            -environment "${{ github.event.inputs.environment }}" `
-            -location $Location
-          
-          Write-Host "✅ Deployment completed successfully!"
+          # Deploy template
+          az deployment group create \
+            --resource-group hybrid-ad-lab-${{ github.event.inputs.environment }}-rg \
+            --template-file projects/hybrid-ad-lab/main.bicep \
+            --parameters @projects/hybrid-ad-lab/main.parameters.json \
+            --parameters projectName=hybrid-ad-lab \
+            --parameters environment=${{ github.event.inputs.environment }} \
+            --parameters location=${{ github.event.inputs.location }}
 
-      - name: Show Results
-        shell: pwsh
+      - name: Show VMs
         run: |
-          $RGName = "hybrid-ad-lab-${{ github.event.inputs.environment }}-rg"
-          
-          Write-Host "=== DEPLOYMENT COMPLETE ==="
-          Write-Host "Resource Group: $RGName"
-          Write-Host ""
-          
-          Write-Host "VMs created:"
-          Get-AzVM -ResourceGroupName $RGName | Select-Object Name, @{Name="Size";Expression={$_.HardwareProfile.VmSize}}, @{Name="Status";Expression={$_.PowerState}} | Format-Table
-          
-          Write-Host ""
-          Write-Host "Public IPs:"
-          Get-AzVM -ResourceGroupName $RGName | ForEach-Object {
-            $pip = Get-AzPublicIpAddress -ResourceGroupName $RGName | Where-Object {$_.Name -like "*$($_.Name)*"}
-            [PSCustomObject]@{
-              VM = $_.Name
-              PublicIP = $pip.IpAddress
-            }
-          } | Format-Table
-          
-          Write-Host ""
-          Write-Host "Connection Details:"
-          Write-Host "Username: labadmin"
-          Write-Host "Password: P@ssword123!"
+          echo "=== VMs Deployed ==="
+          az vm list --resource-group hybrid-ad-lab-${{ github.event.inputs.environment }}-rg --output table
