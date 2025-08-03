@@ -1,37 +1,70 @@
-name: Deploy Azure Hybrid AD Lab
+name: Deploy Azure IaC Project
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project name (folder under projects/)'
+        required: true
+        default: 'hybrid-ad-lab'
+      environment:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+      location:
+        description: 'Azure region'
+        required: false
+        default: 'eastus'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
+      # 1. Checkout Code
       - name: Checkout Repo
         uses: actions/checkout@v4
 
+      # 2. Login to Azure
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # 3. Install Bicep CLI
       - name: Install Bicep CLI
         run: az bicep install
 
-      - name: Validate Bicep
+      # 4. Validate Bicep
+      - name: Validate Bicep Template
         run: |
-          echo "Validating Bicep template..."
-          az bicep build --file projects/hybrid-ad-lab/main.bicep
+          echo "Validating Bicep for project ${{ github.event.inputs.project }}..."
+          az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
 
+      # 5. Create Resource Group
       - name: Create Resource Group
         run: |
-          echo "Creating Resource Group..."
-          az group create --name hybrid-ad-lab-rg --location eastus
+          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          echo "Creating resource group $RG_NAME..."
+          az group create \
+            --name $RG_NAME \
+            --location ${{ github.event.inputs.location }} \
+            --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
 
+      # 6. Deploy Project
       - name: Deploy Bicep Template
         run: |
-          echo "Deploying Bicep Template..."
+          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          echo "Deploying ${{ github.event.inputs.project }} in $RG_NAME..."
           az deployment group create \
-            --resource-group hybrid-ad-lab-rg \
-            --template-file projects/hybrid-ad-lab/main.bicep \
-            --parameters @projects/hybrid-ad-lab/main.parameters.json
+            --resource-group $RG_NAME \
+            --template-file projects/${{ github.event.inputs.project }}/main.bicep \
+            --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
+            --parameters location=${{ github.event.inputs.location }}
+
+      # 7. Output VM Public IPs
+      - name: Get VM Public IPs
+        run: |
+          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          echo "Fetching public IPs for VMs in $RG_NAME..."
+          az vm list-ip-addresses --resource-group $RG_NAME --output table
