@@ -89,9 +89,9 @@ jobs:
             --parameters \
                 projectName=${{ github.event.inputs.project }} \
                 environment=${{ github.event.inputs.environment }} \
-                location=${{ github.event.inputs.location }} \
-            --query "{status:properties.provisioningState, outputs:properties.outputs}" \
-            --output json
+                location=${{ github.event.inputs.location }}
+          
+          echo "✅ Deployment completed successfully"
 
       # 8. Get VM Public IPs
       - name: Get VM Public IPs
