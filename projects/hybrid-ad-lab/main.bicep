@@ -26,8 +26,15 @@ module vnet '../../infra-modules/network/vnet.bicep' = {
   params: {
     name: '${resourcePrefix}-vnet'
     location: location
-    addressPrefixes: ['10.0.0.0/16']
-    subnetPrefix: '10.0.0.0/24'
+    addressPrefixes: [
+      '10.0.0.0/16'
+    ]
+    subnets: [
+      {
+        name: 'default'
+        addressPrefix: '10.0.0.0/24'
+      }
+    ]
   }
 }
 
@@ -56,5 +63,19 @@ module nic1 '../../infra-modules/network/nic.bicep' = {
   params: {
     name: '${resourcePrefix}-dc-nic'
     location: location
-    subnetId: vnet.outputs.subnetId
+    subnetId: vnet.outputs.subnetIds['default']
     nsgId: nsg.outputs.nsgId
+  }
+}
+
+module vm1 '../../infra-modules/compute/vm.bicep' = {
+  name: '${resourcePrefix}-dc-vm'
+  params: {
+    name: '${resourcePrefix}-dc'
+    location: location
+    adminUsername: adminUsername
+    adminPassword: adminPassword
+    nicId: nic1.outputs.nicId
+    tags: tags
+  }
+}
