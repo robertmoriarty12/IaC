@@ -40,6 +40,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
 output vnetId string = vnet.id
 output vnetName string = vnet.name
 
-// More reliable subnet output
-output subnetIds array = [for subnet in vnet.properties.subnets: subnet.id]
-output subnetNames array = [for subnet in vnet.properties.subnets: subnet.name]
+// Use the input subnets parameter to generate outputs
+output subnetIds array = [for (subnet, i) in subnets: '${vnet.id}/subnets/${subnet.name}']
+output subnetNames array = [for subnet in subnets: subnet.name]
