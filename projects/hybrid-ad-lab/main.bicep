@@ -1,68 +1,49 @@
-param location string = 'eastus'
+param projectName string
+param environment string
+param location string
+
+@description('Admin username for VMs')
 param adminUsername string
+
+@description('Admin password for VMs')
 param adminPassword string
 
-// Deploy VNet
-module vnetModule '../../infra-modules/network/vnet.bicep' = {
-  name: 'vnetDeployment'
+var resourcePrefix = '${projectName}-${environment}'
+
+module vnet '../../infra-modules/network/vnet.bicep' = {
+  name: '${resourcePrefix}-vnet'
   params: {
-    name: 'demoVNet'
+    name: '${resourcePrefix}-vnet'
     location: location
     addressPrefixes: ['10.0.0.0/16']
   }
 }
 
-// Deploy NSG
-module nsgModule '../../infra-modules/network/nsg.bicep' = {
-  name: 'nsgDeployment'
+module nsg '../../infra-modules/network/nsg.bicep' = {
+  name: '${resourcePrefix}-nsg'
   params: {
-    name: 'demoNSG'
+    name: '${resourcePrefix}-nsg'
     location: location
   }
 }
 
-// Deploy NIC for DC
-module dcNicModule '../../infra-modules/network/nic.bicep' = {
-  name: 'dcNicDeployment'
+module nic1 '../../infra-modules/network/nic.bicep' = {
+  name: '${resourcePrefix}-dc-nic'
   params: {
-    name: 'demo-dc-nic'
+    name: '${resourcePrefix}-dc-nic'
     location: location
-    subnetId: vnetModule.outputs.vnetId
-    nsgId: nsgModule.outputs.nsgId
+    subnetId: vnet.outputs.vnetId
+    nsgId: nsg.outputs.nsgId
   }
 }
 
-// Deploy NIC for AD Connect
-module adConnectNicModule '../../infra-modules/network/nic.bicep' = {
-  name: 'adConnectNicDeployment'
+module vm1 '../../infra-modules/compute/vm.bicep' = {
+  name: '${resourcePrefix}-dc-vm'
   params: {
-    name: 'demo-adconnect-nic'
-    location: location
-    subnetId: vnetModule.outputs.vnetId
-    nsgId: nsgModule.outputs.nsgId
-  }
-}
-
-// Deploy DC VM
-module dcVmModule '../../infra-modules/compute/vm.bicep' = {
-  name: 'dcVmDeployment'
-  params: {
-    name: 'demo-dc'
+    name: '${resourcePrefix}-dc'
     location: location
     adminUsername: adminUsername
     adminPassword: adminPassword
-    nicId: dcNicModule.outputs.nicId
-  }
-}
-
-// Deploy AD Connect VM
-module adConnectVmModule '../../infra-modules/compute/vm.bicep' = {
-  name: 'adConnectVmDeployment'
-  params: {
-    name: 'demo-adconnect'
-    location: location
-    adminUsername: adminUsername
-    adminPassword: adminPassword
-    nicId: adConnectNicModule.outputs.nicId
+    nicId: nic1.outputs.nicId
   }
 }
