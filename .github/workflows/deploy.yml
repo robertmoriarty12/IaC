@@ -25,6 +25,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Install Azure PowerShell
+        shell: pwsh
+        run: |
+          Install-Module -Name Az -Repository PSGallery -Force -AllowClobber
+          Import-Module Az
+
       - name: Deploy with PowerShell
         shell: pwsh
         run: |
