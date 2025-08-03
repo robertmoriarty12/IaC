@@ -33,14 +33,12 @@ jobs:
         run: az bicep install
 
       - name: Validate Template
-        run: |
-          az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
-          echo "Template validation successful"
+        run: az bicep build --file projects/${{ github.event.inputs.project }}/main.bicep
 
       - name: Create Resource Group
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
-          az group create --name $RG_NAME --location ${{ github.event.inputs.location }} --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}"
+          az group create --name $RG_NAME --location ${{ github.event.inputs.location }} --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" > /dev/null 2>&1
 
       - name: Deploy Infrastructure
         run: |
@@ -51,9 +49,16 @@ jobs:
             --parameters @projects/${{ github.event.inputs.project }}/main.parameters.json \
             --parameters projectName=${{ github.event.inputs.project }} \
             --parameters environment=${{ github.event.inputs.environment }} \
-            --parameters location=${{ github.event.inputs.location }}
+            --parameters location=${{ github.event.inputs.location }} \
+            --no-wait
 
-      - name: Get VM Information
+      - name: Wait for Deployment
+        run: |
+          RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
+          sleep 30
+          az deployment group wait --resource-group $RG_NAME --name "main" --created
+
+      - name: Show Results
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "=== DEPLOYMENT COMPLETE ==="
