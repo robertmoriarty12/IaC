@@ -27,17 +27,19 @@ jobs:
 
       - name: Deploy
         run: |
-          # Create resource group
-          az group create --name hybrid-ad-lab-${{ github.event.inputs.environment }}-rg --location ${{ github.event.inputs.location }}
+          # Create resource group (suppress all output)
+          az group create --name hybrid-ad-lab-${{ github.event.inputs.environment }}-rg --location ${{ github.event.inputs.location }} > /dev/null 2>&1
           
-          # Deploy template
+          # Deploy template (suppress all output)
           az deployment group create \
             --resource-group hybrid-ad-lab-${{ github.event.inputs.environment }}-rg \
             --template-file projects/hybrid-ad-lab/main.bicep \
             --parameters @projects/hybrid-ad-lab/main.parameters.json \
             --parameters projectName=hybrid-ad-lab \
             --parameters environment=${{ github.event.inputs.environment }} \
-            --parameters location=${{ github.event.inputs.location }}
+            --parameters location=${{ github.event.inputs.location }} > /dev/null 2>&1
+          
+          echo "✅ Deployment completed successfully!"
 
       - name: Show VMs
         run: |
