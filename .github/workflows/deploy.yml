@@ -39,7 +39,7 @@ jobs:
       - name: Check Bicep Version
         run: az bicep version
 
-      # 5. Validate Bicep
+      # 5. Validate Bicep Template
       - name: Validate Bicep Template
         run: |
           echo "Validating Bicep for project ${{ github.event.inputs.project }}..."
@@ -51,12 +51,11 @@ jobs:
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
           echo "Creating resource group $RG_NAME..."
           az group create \
-            --only-show-errors \
             --name $RG_NAME \
             --location ${{ github.event.inputs.location }} \
             --tags "Project=${{ github.event.inputs.project }}" "Environment=${{ github.event.inputs.environment }}" "DeployedBy=GitHubActions"
 
-      # 7. Deploy Bicep Template (Safe Output Mode)
+      # 7. Deploy Bicep Template (Safe Mode)
       - name: Deploy Bicep Template
         run: |
           RG_NAME="${{ github.event.inputs.project }}-${{ github.event.inputs.environment }}-rg"
