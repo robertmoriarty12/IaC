@@ -22,16 +22,19 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
     addressSpace: {
       addressPrefixes: addressPrefixes
     }
-    subnets: [for subnet in subnets: {
-      name: subnet.name
-      properties: {
-        addressPrefix: subnet.addressPrefix
+    subnets: [
+      for subnet in subnets: {
+        name: subnet.name
+        properties: {
+          addressPrefix: subnet.addressPrefix
+        }
       }
-    }]
+    ]
   }
 }
 
 output vnetId string = vnet.id
+
 output subnetIds object = {
-  for subnet in subnets: subnet.name => vnet.properties.subnets[arrayIndexOf(subnets, subnet)].id
+  for (subnet, i) in subnets: subnet.name => vnet.properties.subnets[i].id
 }
